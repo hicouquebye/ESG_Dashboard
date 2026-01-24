@@ -1,16 +1,30 @@
 # ESG PDF Parsing 파이프라인
 
+## 0. (옵션) PDF 인코딩 보정 (`src/pdf_text_extractor.py`)
+- **목적**: PDF 인코딩 문제로 텍스트가 깨지거나 Docling이 읽지 못할 때, **화면 요소(Visual)**를 기반으로 PDF를 재구축(Reconstruction)한다.
+- **주요 산출물**: `원본.sanitized.pdf` (MD 파일은 생성하지 않음)
+- **실행 예시**
+  ```bash
+  python3 src/pdf_text_extractor.py --pdf data/input/broken.pdf
+  ```
+  이후 단계에서는 생성된 `data/input/broken.sanitized.pdf`를 입력으로 사용한다.
+
 ## 1. Docling 기반 구조화 (`src/structured_extract.py`)
 - **목적**: 페이지별 Markdown, 표(텍스트+JSON), 그림 이미지를 생성하고 `page.json`에 모든 메타데이터를 기록.
 - **주요 산출물** (`data/pages_structured/page_XXXX/`)
+- **입력**: 원본 PDF 또는 **0번 단계에서 생성된 sanitized PDF**.
+- **주요 산출물**:
   - `page.md` / `page.png`
   - `tables/table_***.(md|json|png)`
   - `figures/figure_***.png`
   - `page.json`: 페이지 번호, 표/그림 bbox, GPT 요약 경로, OCR/비교 결과 등 메타데이터.
 - **실행 예시**
   ```bash
-  python3 src/structured_extract.py --pages 25-27 --gpt-summary \
-      --gpt-model gpt-4o-mini
+  # 원본 사용 시
+  python3 src/structured_extract.py --pdf data/input/normal.pdf --pages 25-27
+
+  # 보정된 PDF 사용 시
+  python3 src/structured_extract.py --pdf data/input/broken.sanitized.pdf --pages 25-27
   ```
   `OPENAI_API_KEY` 또는 `OPEN_AI_API_KEY` 환경변수를 사용하며, `--gpt-api-key`로 직접 지정할 수도 있다.
 
