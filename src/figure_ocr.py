@@ -23,7 +23,7 @@ load_dotenv()
 
 
 def load_api_key(explicit: str | None = None) -> str:
-    key = explicit or os.getenv("OPENAI_API_KEY") or os.getenv("OPEN_AI_API_KEY")
+    key = explicit or os.getenv("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("OPENAI_API_KEY가 필요합니다.")
     return key
@@ -233,7 +233,9 @@ def main(argv: List[str] | None = None) -> int:
             prompt = (
                 "다음은 해당 페이지 본문 일부입니다. 이 문맥을 참고하여 그림이 전달하는 인사이트를 설명하세요.\n"
                 f"[본문]\n{context_text}\n"
-                "축/범례/강조 영역이 눈에 보일 때만 언급하고, 없으면 언급하지 마세요."
+                "\n"
+                "- 그림 안의 모든 핵심 텍스트를 반드시 언급하고, 특히 숫자들은 정확하게 언급하세요 .\n"
+                "- 축/범례/강조 영역은 실제로 보일 때만 언급하고, 없으면 언급하지 마세요."
             )
 
             description = describe_figure(client, args.model, image_path, prompt)

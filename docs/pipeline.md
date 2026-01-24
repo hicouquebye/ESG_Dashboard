@@ -11,9 +11,17 @@
 
 ## 1. Docling 기반 구조화 (`src/structured_extract.py`)
 - **목적**: 페이지별 Markdown, 표(텍스트+JSON), 그림 이미지를 생성하고 `page.json`에 모든 메타데이터를 기록.
+<<<<<<< HEAD
 - **주요 산출물** (`data/pages_structured/page_XXXX/`)
 - **입력**: 원본 PDF 또는 **0번 단계에서 생성된 sanitized PDF**.
 - **주요 산출물**:
+=======
+- **보고서별 폴더 구조**
+  - 기본 출력 경로(`data/pages_structured`)를 사용할 경우 PDF 파일명을 정규화하여 자동으로 하위 폴더를 만든다. 예: `2025_HDEC_Sustainability_Report_K.pdf` → `data/pages_structured/2025_HDEC_Sustainability_Report_K/page_0026/…`
+  - 직접 폴더명을 정하고 싶으면 `--report-name my_client`로 지정하면 된다.
+  - `--output-dir`를 다른 경로로 설정하면 해당 경로에 그대로 저장되므로, 필요에 따라 기존 평면 구조도 유지 가능.
+- **주요 산출물** (`data/pages_structured/<보고서명>/page_XXXX/`)
+>>>>>>> 0a0d2cb (ocr 로직 page_diff 찾기 수정)
   - `page.md` / `page.png`
   - `tables/table_***.(md|json|png)`
   - `figures/figure_***.png`
@@ -28,14 +36,21 @@
   ```
   `OPENAI_API_KEY` 또는 `OPEN_AI_API_KEY` 환경변수를 사용하며, `--gpt-api-key`로 직접 지정할 수도 있다.
 
-## 2. 표 이미지 OCR (`src/table_ocr.py`)
-- **목적**: `tables/table_***.png`를 RapidOCR(onxxruntime)으로 읽어 `table_***.ocr.json`을 생성.
-- `page.json`의 각 표 항목에 `ocr_path`, `ocr_preview`가 추가되어 GPT나 검증 단계에서 이미지 기반 텍스트를 활용할 수 있다.
+## 2. 표 텍스트 추출 (`src/table_ocr.py`)
+- **목적**: `tables/table_***.png` 영역의 텍스트를 추출해 `table_***.ocr.json`으로 저장하고, `page.json`의 `ocr_path`/`ocr_preview`를 갱신한다.
+- **백엔드 선택**
+  - `--backend pymupdf` (기본값): Docling이 기록한 표 bbox를 이용해 PDF 원본에서 직접 텍스트를 읽어온다. PDF에 내장된 글자를 그대로 쓰므로 숫자 정확도가 높다.
+  - `--backend rapidocr`: 기존과 동일하게 표 이미지를 RapidOCR 모델에 넣어 OCR한다. 스캔 PDF처럼 텍스트가 없는 경우에 사용.
+  - `--pdf`로 PyMuPDF가 읽을 PDF 경로를 지정할 수 있으며, 생략 시 `data/input`의 첫 번째 PDF를 자동으로 사용.
 - **실행 예시**
   ```bash
-  python3 src/table_ocr.py --pages 25-27
+  # PDF 텍스트 기반 추출 (기본)
+  python3 src/table_ocr.py --pages 25-27 --backend pymupdf
+
+  # RapidOCR로 이미지 OCR
+  python3 src/table_ocr.py --pages 25-27 --backend rapidocr
   ```
-  `--overwrite`로 기존 OCR 결과를 대체할 수 있음.
+  `--overwrite`로 기존 결과를 덮어쓸 수 있다.
 
 ## 3. 그림/도식 GPT 설명 (`src/figure_ocr.py`)
 - **목적**: GPT-4o-mini에 그림 이미지를 전달해 다이어그램, 화살표 흐름, 강조 텍스트를 서술한 Markdown(`figure_***.desc.md`) 생성.

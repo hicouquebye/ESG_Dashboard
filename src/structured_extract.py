@@ -456,6 +456,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default="gpt-4o-mini",
         help="GPT 호출에 사용할 모델 ID.",
     )
+    parser.add_argument(
+        "--report-name",
+        type=str,
+        default=None,
+        help="pages_structured 하위에 생성할 보고서 폴더 이름. 생략하면 PDF 파일명을 기반으로 자동 생성.",
+    )
     return parser
 
 
@@ -480,7 +486,21 @@ def main(argv: List[str] | None = None) -> int:
         pages = pages_from_count(total_pages, args.count)
 
     target_pages = sorted(set(pages))
-    output_root = args.output_dir.resolve()
+
+    def sanitize_report_name(raw: str) -> str:
+        cleaned_chars = [ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in raw]
+        sanitized = "".join(cleaned_chars).strip("_")
+        return sanitized or "report"
+
+    base_output = args.output_dir.resolve()
+    default_base = DEFAULT_OUTPUT_DIR.resolve()
+    report_name = args.report_name
+    if not report_name and base_output == default_base:
+        report_name = sanitize_report_name(pdf_path.stem)
+    if report_name:
+        output_root = base_output / report_name
+    else:
+        output_root = base_output
     output_root.mkdir(parents=True, exist_ok=True)
 
     gpt_api_key = (
