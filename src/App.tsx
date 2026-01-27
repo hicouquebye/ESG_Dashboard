@@ -505,7 +505,7 @@ function App() {
                                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
                                   <span className="text-sm font-medium text-slate-700">{entry.value}</span>
                                 </div>
-                                <span className="text-sm font-semibold text-slate-900">
+                                <span className="text-sm font-normal text-slate-900">
                                   {((entry.payload.value / (selectedComp.s1 + selectedComp.s2 + selectedComp.s3)) * 100).toFixed(0)}%
                                 </span>
                               </div>
