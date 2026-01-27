@@ -830,7 +830,7 @@ const App: React.FC = () => {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                   <h2 className="text-3xl font-bold text-slate-900 tracking-tight">업계 벤치마킹 분석</h2>
-                  <p className="text-slate-500 text-sm mt-1">페이지 2 / 5: 주요 경쟁사 대비 집약도 비교</p>
+                  <p className="text-slate-500 text-sm mt-1">경쟁사 비교</p>
                 </div>
                 <Button variant="outline" className="gap-2">
                   <Download size={16} /> 리포트 내보내기
