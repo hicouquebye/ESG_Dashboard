@@ -1359,11 +1359,7 @@ const App: React.FC = () => {
           <div className="space-y-6 animate-in fade-in duration-500">
             {/* ... Same as previous ... */}
             <div className="flex flex-col gap-6 mb-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                <span className="text-slate-400 hover:text-[#10b77f] transition-colors cursor-pointer">전략 (Strategy)</span>
-                <span className="text-slate-300">/</span>
-                <span className="text-slate-900 font-medium">페이지 5: 투자 전략</span>
-              </div>
+
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex flex-col gap-2">
                   <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
