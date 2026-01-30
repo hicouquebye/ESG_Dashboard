@@ -1,0 +1,270 @@
+"""
+FastAPI Backend Server for ESG Dashboard
+Connects React frontend with PDF_Extraction Python modules
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Add PDF_Extraction to path
+sys.path.insert(0, str(Path(__file__).parent.parent / "PDF_Extraction" / "src"))
+
+# Load environment variables
+load_dotenv(Path(__file__).parent.parent / ".env")
+
+app = FastAPI(
+    title="ESG Dashboard API",
+    description="API for ESG document analysis and search",
+    version="1.0.0"
+)
+
+# CORS configuration for React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:3000",  # Alternative dev server
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ============================================
+# Response Models
+# ============================================
+
+class SearchResult(BaseModel):
+    rank: int
+    distance: float
+    company_name: str
+    report_year: str
+    page_no: int
+    chunk_index: int
+    content_preview: str
+    doc_id: str
+
+
+class SearchResponse(BaseModel):
+    query: str
+    total_results: int
+    results: List[SearchResult]
+
+
+class HealthResponse(BaseModel):
+    status: str
+    message: str
+
+
+# ============================================
+# API Endpoints
+# ============================================
+
+@app.get("/", response_model=HealthResponse)
+async def root():
+    """Health check endpoint"""
+    return HealthResponse(
+        status="ok",
+        message="ESG Dashboard API is running"
+    )
+
+
+@app.get("/api/health", response_model=HealthResponse)
+async def health_check():
+    """API health check"""
+    return HealthResponse(
+        status="ok",
+        message="API is healthy"
+    )
+
+
+@app.get("/api/search", response_model=SearchResponse)
+async def search_esg(
+    query: str = Query(..., description="Search query string"),
+    top_k: int = Query(5, ge=1, le=20, description="Number of results to return")
+):
+    """
+    Search ESG documents using vector similarity search.
+    
+    - **query**: The search query string (e.g., "탄소배출", "환경정책")
+    - **top_k**: Number of results to return (1-20, default: 5)
+    """
+    try:
+        # Import here to avoid loading heavy models at startup
+        import chromadb
+        from sentence_transformers import SentenceTransformer
+        
+        # Configuration (must match PDF_Extraction settings)
+        VECTOR_DB_DIR = str(Path(__file__).parent.parent / "PDF_Extraction" / "vector_db")
+        COLLECTION_NAME = "esg_documents"
+        EMBEDDING_MODEL_NAME = "BAAI/bge-m3"
+        
+        # Check if vector DB exists
+        if not os.path.exists(VECTOR_DB_DIR):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Vector DB not found. Please run PDF_Extraction pipeline first."
+            )
+        
+        # Initialize ChromaDB
+        client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
+        
+        try:
+            collection = client.get_collection(COLLECTION_NAME)
+        except Exception as e:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Collection '{COLLECTION_NAME}' not found: {str(e)}"
+            )
+        
+        # Embed query
+        model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+        query_vec = model.encode([query]).tolist()
+        
+        # Query ChromaDB
+        results = collection.query(
+            query_embeddings=query_vec,
+            n_results=top_k
+        )
+        
+        # Format results
+        search_results = []
+        if results['documents'] and results['documents'][0]:
+            for idx, doc in enumerate(results['documents'][0]):
+                meta = results['metadatas'][0][idx]
+                distance = results['distances'][0][idx]
+                
+                search_results.append(SearchResult(
+                    rank=idx + 1,
+                    distance=round(distance, 4),
+                    company_name=meta.get('company_name', 'Unknown'),
+                    report_year=str(meta.get('report_year', 'Unknown')),
+                    page_no=meta.get('page_no', 0),
+                    chunk_index=meta.get('chunk_index', 0),
+                    content_preview=doc[:300].replace('\n', ' '),
+                    doc_id=results['ids'][0][idx]
+                ))
+        
+        return SearchResponse(
+            query=query,
+            total_results=len(search_results),
+            results=search_results
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Search error: {str(e)}"
+        )
+
+
+@app.get("/api/companies")
+async def list_companies():
+    """
+    List all companies in the database.
+    """
+    try:
+        import chromadb
+        
+        VECTOR_DB_DIR = str(Path(__file__).parent.parent / "PDF_Extraction" / "vector_db")
+        COLLECTION_NAME = "esg_documents"
+        
+        if not os.path.exists(VECTOR_DB_DIR):
+            return {"companies": []}
+        
+        client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
+        
+        try:
+            collection = client.get_collection(COLLECTION_NAME)
+            # Get all metadata to extract unique companies
+            all_data = collection.get(include=["metadatas"])
+            
+            companies = set()
+            for meta in all_data['metadatas']:
+                if 'company_name' in meta:
+                    companies.add(meta['company_name'])
+            
+            return {"companies": sorted(list(companies))}
+            
+        except Exception:
+            return {"companies": []}
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing companies: {str(e)}"
+        )
+
+
+@app.get("/api/stats")
+async def get_stats():
+    """
+    Get database statistics.
+    """
+    try:
+        import chromadb
+        
+        VECTOR_DB_DIR = str(Path(__file__).parent.parent / "PDF_Extraction" / "vector_db")
+        COLLECTION_NAME = "esg_documents"
+        
+        if not os.path.exists(VECTOR_DB_DIR):
+            return {
+                "total_documents": 0,
+                "total_chunks": 0,
+                "companies": [],
+                "years": []
+            }
+        
+        client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
+        
+        try:
+            collection = client.get_collection(COLLECTION_NAME)
+            all_data = collection.get(include=["metadatas"])
+            
+            companies = set()
+            years = set()
+            
+            for meta in all_data['metadatas']:
+                if 'company_name' in meta:
+                    companies.add(meta['company_name'])
+                if 'report_year' in meta:
+                    years.add(str(meta['report_year']))
+            
+            return {
+                "total_chunks": len(all_data['ids']),
+                "total_companies": len(companies),
+                "companies": sorted(list(companies)),
+                "years": sorted(list(years), reverse=True)
+            }
+            
+        except Exception:
+            return {
+                "total_chunks": 0,
+                "total_companies": 0,
+                "companies": [],
+                "years": []
+            }
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting stats: {str(e)}"
+        )
+
+
+# Run with: uvicorn main:app --reload --port 8000
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
