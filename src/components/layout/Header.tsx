@@ -49,6 +49,11 @@ export const Header: React.FC<HeaderProps> = ({
                                 onClick={() => setIsCompanyMenuOpen(!isCompanyMenuOpen)}
                                 className="flex items-center gap-2 text-slate-700 font-bold text-lg hover:text-[#10b77f] transition-colors focus:outline-none px-3 py-1.5 rounded-xl hover:bg-white hover:shadow-sm"
                             >
+                                {/* Glowing Green Indicator (Left) */}
+                                <span className="relative flex h-2.5 w-2.5 mx-0.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b77f] opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#10b77f]"></span>
+                                </span>
                                 <span>{selectedCompany.name}</span>
                                 <ChevronDown size={16} className={cn("transition-transform duration-200 text-slate-400", isCompanyMenuOpen ? "rotate-180" : "group-hover:text-[#10b77f]")} />
                             </button>
