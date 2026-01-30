@@ -30,12 +30,11 @@ const App: React.FC = () => {
 
   const [simBudget, setSimBudget] = useState<number>(75);
   const [simRisk, setSimRisk] = useState<number>(25);
-  const [activeMarkets, setActiveMarkets] = useState<MarketType[]>(['K-ETS', 'EU-ETS']);
+  const [activeMarkets] = useState<MarketType[]>(['K-ETS', 'EU-ETS']);
 
   // Investment State
   const [investTotalAmount, setInvestTotalAmount] = useState<number>(762100000000);
   const [investCarbonPrice, setInvestCarbonPrice] = useState<number>(45000);
-  const [investTechCost, setInvestTechCost] = useState<number>(85000);
 
   const [investEnergySavings, setInvestEnergySavings] = useState<number>(12.5);
   const [investDiscountRate, setInvestDiscountRate] = useState<number>(4.2);
@@ -160,7 +159,7 @@ const App: React.FC = () => {
       selectedComp.allowance;
   }, [selectedComp, activeScopes]);
 
-  const costK_KRW = totalExposure * MARKET_DATA['K-ETS'].price;
+
   const costEU_KRW = totalExposure * MARKET_DATA['EU-ETS'].price * 1450;
 
   const activeTranches = tranches.filter(t => activeMarkets.includes(t.market));

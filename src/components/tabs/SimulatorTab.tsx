@@ -3,7 +3,7 @@ import {
     ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import {
-    TrendingUp, TrendingDown, Euro, Globe, Database, Plus, MoreHorizontal, CheckCircle, ShieldCheck, Sparkles
+    TrendingUp, TrendingDown, Euro, Globe, Database, MoreHorizontal, CheckCircle, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { CustomTooltip } from '../ui/CustomTooltip';
