@@ -159,7 +159,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         <h3 className="text-slate-900 text-lg font-bold">Scope별 배출 기여도</h3>
                         <button className="text-slate-400 hover:text-[#10b77f] transition-colors"><MoreHorizontal size={20} /></button>
                     </div>
-                    <div className="flex-1 w-full min-h-[300px] relative">
+                    <div className="flex-1 w-full min-h-[400px] relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -253,7 +253,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                             </div>
                         </div>
                     </div>
-                    <div className="flex-1 w-full min-h-[300px]">
+                    <div className="flex-1 w-full min-h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={sbtiAnalysis.trajectory} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                                 <defs>
