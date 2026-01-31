@@ -3,7 +3,7 @@ import {
     ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import {
-    TrendingUp, TrendingDown, Euro, Globe, Database, Plus, MoreHorizontal, CheckCircle, ShieldCheck
+    TrendingUp, TrendingDown, Euro, Globe, Database, MoreHorizontal, CheckCircle, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { CustomTooltip } from '../ui/CustomTooltip';
@@ -26,6 +26,7 @@ interface SimulatorTabProps {
     setSimRisk: (risk: number) => void;
     budgetInWon: number;
     estimatedSavings: number;
+    generateAIPlan: () => void;
 }
 
 export const SimulatorTab: React.FC<SimulatorTabProps> = ({
@@ -42,7 +43,8 @@ export const SimulatorTab: React.FC<SimulatorTabProps> = ({
     simRisk,
     setSimRisk,
     budgetInWon,
-    estimatedSavings
+    estimatedSavings,
+    generateAIPlan
 }) => {
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
@@ -174,11 +176,14 @@ export const SimulatorTab: React.FC<SimulatorTabProps> = ({
                 <div className="flex-1 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col">
                     <div className="p-5 border-b border-slate-100 flex justify-between items-center">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900">스마트 분할 매수 플래너 (Tranche Planner)</h3>
+                            <h3 className="text-lg font-bold text-slate-900">스마트 분할 매수 플래너</h3>
                             <p className="text-sm text-slate-500">변동성 기반 매수 전략 제안</p>
                         </div>
-                        <button className="bg-[#10b77f] hover:bg-[#0e9f6e] text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm shadow-[#10b77f]/20">
-                            <Plus size={18} /> 추가
+                        <button
+                            onClick={generateAIPlan}
+                            className="bg-[#10b77f] hover:bg-[#0e9f6e] text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm shadow-[#10b77f]/20"
+                        >
+                            <Sparkles size={16} /> AI 전략 생성
                         </button>
                     </div>
                     <div className="overflow-x-auto p-2">

@@ -30,12 +30,11 @@ const App: React.FC = () => {
 
   const [simBudget, setSimBudget] = useState<number>(75);
   const [simRisk, setSimRisk] = useState<number>(25);
-  const [activeMarkets, setActiveMarkets] = useState<MarketType[]>(['K-ETS', 'EU-ETS']);
+  const [activeMarkets] = useState<MarketType[]>(['K-ETS', 'EU-ETS']);
 
   // Investment State
   const [investTotalAmount, setInvestTotalAmount] = useState<number>(762100000000);
   const [investCarbonPrice, setInvestCarbonPrice] = useState<number>(45000);
-  const [investTechCost, setInvestTechCost] = useState<number>(85000);
 
   const [investEnergySavings, setInvestEnergySavings] = useState<number>(12.5);
   const [investDiscountRate, setInvestDiscountRate] = useState<number>(4.2);
@@ -160,7 +159,7 @@ const App: React.FC = () => {
       selectedComp.allowance;
   }, [selectedComp, activeScopes]);
 
-  const costK_KRW = totalExposure * MARKET_DATA['K-ETS'].price;
+
   const costEU_KRW = totalExposure * MARKET_DATA['EU-ETS'].price * 1450;
 
   const activeTranches = tranches.filter(t => activeMarkets.includes(t.market));
@@ -320,6 +319,38 @@ const App: React.FC = () => {
     }
   };
 
+  // [ADDED] AI Generation Logic
+  const generateAIPlan = () => {
+    setIsChatOpen(true);
+    // [BACKEND_INTEGRATION] : LLM API 호출 (POST /api/ai/strategy) 
+    // payload: { companyId: selectedCompanyId, market: selectedMarket, ... }
+    setChatMessages(prev => [...prev, { role: 'user', text: "시장 동향을 분석하여 최적의 분할 매수 전략을 생성해줘." }]);
+
+    // Simulate AI processing time
+    setTimeout(() => {
+      const market = MARKET_DATA[selectedMarket];
+      const isHighVolatility = market.volatility === 'High';
+
+      const newTranches: Tranche[] = [
+        { id: Date.now(), market: selectedMarket, price: Math.round(market.price * 0.98), month: '26.02', isFuture: true, percentage: isHighVolatility ? 20 : 40 },
+        { id: Date.now() + 1, market: selectedMarket, price: Math.round(market.price * 0.95), month: '26.05', isFuture: true, percentage: isHighVolatility ? 20 : 30 },
+        { id: Date.now() + 2, market: selectedMarket, price: Math.round(market.price * 1.02), month: '26.09', isFuture: true, percentage: isHighVolatility ? 20 : 10 },
+      ];
+
+      setTranches(newTranches);
+
+      const strategyText = isHighVolatility
+        ? `⚠️ [고변동성 감지] ${market.name} 시장의 변동성이 높습니다. 리스크 분산을 위해 3~4회에 걸친 분할 매수(Tranche) 전략을 제안합니다.`
+        : `✅ [안정적 추세] ${market.name} 시장 가격이 안정적입니다. 저점 매수를 위해 상반기에 물량을 집중하는 공격적 전략을 제안합니다.`;
+
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        text: `${strategyText}\n\n📊 생성된 플랜:\n- 26.02 (40%): 단기 저점 예상\n- 26.05 (30%): 추가 하락 대응\n- 26.09 (30%): 잔여 물량 확보`
+      }]);
+
+    }, 1500);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
@@ -327,15 +358,13 @@ const App: React.FC = () => {
     setChatMessages(prev => [...prev, { role: 'user', text: userText }]);
     setInputMessage('');
     setTimeout(() => {
-      let aiResponse = '';
-      if (userText.includes('전략') || userText.includes('추천')) {
-        const volatility = MARKET_DATA[selectedMarket].volatility;
-        aiResponse = volatility === 'High'
-          ? `[${MARKET_DATA[selectedMarket].name} 전략] 현재 시장 변동성이 높습니다. 분할 매수(Tranche)를 추천합니다.`
-          : `[${MARKET_DATA[selectedMarket].name} 전략] 시장이 안정적입니다. 목표 물량을 조기 확보하세요.`;
-      } else {
-        aiResponse = `${selectedMarket} 시장 데이터를 분석 중입니다. "구매 전략 알려줘"라고 물어보세요.`;
+      if (userText.includes('전략') || userText.includes('추천') || userText.includes('생성')) {
+        // Trigger the AI Plan Logic if user asks via chat too
+        generateAIPlan();
+        return;
       }
+
+      const aiResponse = `${selectedMarket} 시장 데이터를 분석 중입니다. "매수 전략 생성해줘"라고 물어보세요.`;
       setChatMessages(prev => [...prev, { role: 'assistant', text: aiResponse }]);
     }, 800);
   };
@@ -429,6 +458,7 @@ const App: React.FC = () => {
             setSimRisk={setSimRisk}
             budgetInWon={budgetInWon}
             estimatedSavings={estimatedSavings}
+            generateAIPlan={generateAIPlan}
           />
         )}
 
