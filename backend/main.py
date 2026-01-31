@@ -66,6 +66,17 @@ class HealthResponse(BaseModel):
     message: str
 
 
+class ChatRequest(BaseModel):
+    message: str
+    top_k: int = 3  # Number of documents to retrieve
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: List[Dict[str, Any]]
+    query: str
+
+
 # ============================================
 # API Endpoints
 # ============================================
@@ -128,7 +139,7 @@ async def search_esg(
             )
         
         # Embed query
-        model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+        model = SentenceTransformer(EMBEDDING_MODEL_NAME, device='cpu')
         query_vec = model.encode([query]).tolist()
         
         # Query ChromaDB
@@ -261,6 +272,127 @@ async def get_stats():
         raise HTTPException(
             status_code=500,
             detail=f"Error getting stats: {str(e)}"
+        )
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat_with_esg(request: ChatRequest):
+    """
+    RAG-based chat endpoint.
+    Searches relevant documents and generates response using Ollama gemma3.
+    
+    - **message**: User's question about ESG
+    - **top_k**: Number of documents to retrieve for context (default: 3)
+    """
+    import httpx
+    import chromadb
+    from sentence_transformers import SentenceTransformer
+    
+    try:
+        # Configuration
+        VECTOR_DB_DIR = str(Path(__file__).parent.parent / "PDF_Extraction" / "vector_db")
+        COLLECTION_NAME = "esg_documents"
+        EMBEDDING_MODEL_NAME = "BAAI/bge-m3"
+        OLLAMA_URL = "http://localhost:11434/api/generate"
+        
+        # Check if vector DB exists
+        if not os.path.exists(VECTOR_DB_DIR):
+            raise HTTPException(
+                status_code=404,
+                detail="Vector DB not found. Please run PDF_Extraction pipeline first."
+            )
+        
+        # 1. Search Vector DB for relevant documents
+        client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
+        collection = client.get_collection(COLLECTION_NAME)
+        
+        # Embed the query (use CPU to save GPU memory for LLM)
+        model = SentenceTransformer(EMBEDDING_MODEL_NAME, device='cpu')
+        query_vec = model.encode([request.message]).tolist()
+        
+        # Query for similar documents
+        results = collection.query(
+            query_embeddings=query_vec,
+            n_results=request.top_k
+        )
+        
+        # 2. Prepare context from retrieved documents
+        sources = []
+        context_parts = []
+        
+        if results['documents'] and results['documents'][0]:
+            for idx, doc in enumerate(results['documents'][0]):
+                meta = results['metadatas'][0][idx]
+                source_info = {
+                    "company": meta.get('company_name', 'Unknown'),
+                    "year": str(meta.get('report_year', 'Unknown')),
+                    "page": meta.get('page_no', 0),
+                    "content_preview": doc[:200]
+                }
+                sources.append(source_info)
+                context_parts.append(f"[문서 {idx+1}] {meta.get('company_name', '')} {meta.get('report_year', '')}년 보고서 (p.{meta.get('page_no', '')}):\n{doc}")
+        
+        context = "\n\n".join(context_parts)
+        
+        # 3. Create prompt for LLM
+        system_prompt = """당신은 ESG(환경, 사회, 거버넌스) 전문가 AI 어시스턴트입니다.
+주어진 문서 내용을 바탕으로 사용자의 질문에 정확하고 친절하게 답변해주세요.
+답변할 때 반드시 문서의 내용을 참고하고, 확실하지 않은 정보는 추측하지 마세요.
+한국어로 답변해주세요."""
+
+        user_prompt = f"""다음 ESG 보고서 문서들을 참고하여 질문에 답변해주세요.
+
+=== 참고 문서 ===
+{context}
+
+=== 질문 ===
+{request.message}
+
+=== 답변 ==="""
+
+        # 4. Call Ollama API
+        async with httpx.AsyncClient(timeout=120.0) as http_client:
+            ollama_response = await http_client.post(
+                OLLAMA_URL,
+                json={
+                    "model": "gemma3:4b",
+                    "prompt": user_prompt,
+                    "system": system_prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.7,
+                        "top_p": 0.9,
+                        "num_ctx": 4096
+                    }
+                }
+            )
+            
+            if ollama_response.status_code != 200:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Ollama API error: {ollama_response.text}"
+                )
+            
+            response_data = ollama_response.json()
+            answer = response_data.get("response", "죄송합니다. 답변을 생성할 수 없습니다.")
+        
+        return ChatResponse(
+            answer=answer.strip(),
+            sources=sources,
+            query=request.message
+        )
+        
+    except HTTPException:
+        raise
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail="Ollama 서버에 연결할 수 없습니다. Ollama가 실행 중인지 확인해주세요."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Chat error: {str(e)}"
         )
 
 

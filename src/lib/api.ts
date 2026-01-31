@@ -39,6 +39,19 @@ export interface HealthResponse {
     message: string;
 }
 
+export interface ChatSource {
+    company: string;
+    year: string;
+    page: number;
+    content_preview: string;
+}
+
+export interface ChatResponse {
+    answer: string;
+    sources: ChatSource[];
+    query: string;
+}
+
 // API Functions
 
 /**
@@ -98,11 +111,40 @@ export async function getStats(): Promise<StatsResponse> {
     return response.json();
 }
 
+/**
+ * Send chat message to RAG-based AI assistant
+ * @param message - User's question about ESG
+ * @param topK - Number of documents to retrieve for context (default: 3)
+ */
+export async function sendChatMessage(
+    message: string,
+    topK: number = 3
+): Promise<ChatResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message,
+            top_k: topK,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(error.detail || 'Chat failed');
+    }
+
+    return response.json();
+}
+
 // Export all as default object
 export default {
     checkHealth,
     searchDocuments,
     getCompanies,
     getStats,
+    sendChatMessage,
     API_BASE_URL,
 };
